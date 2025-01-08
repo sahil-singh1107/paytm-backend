@@ -1,5 +1,5 @@
 import { MongoClient, Db, ObjectId } from "mongodb";
-var ObjectID = require('mongodb').ObjectID;
+import bcrypt from "bcrypt"
 
 export class DBInstance {
     private static instance: DBInstance;
@@ -10,7 +10,7 @@ export class DBInstance {
 
     private constructor() {
         console.log("New MongoClient Instance Created");
-        this.MongoDBClient = new MongoClient(this.MONGODB_URI); 
+        this.MongoDBClient = new MongoClient(this.MONGODB_URI);
     }
 
     private async initialize() {
@@ -38,7 +38,7 @@ export class DBInstance {
         return DBInstance.db;
     }
 
-    public async createCollection (collectionName : string , options : object) : Promise<void> {
+    public async createCollection(collectionName: string, options: object): Promise<void> {
         try {
 
             const db = DBInstance.db
@@ -56,50 +56,62 @@ export class DBInstance {
         }
     }
 
-    public async checkUserAlreadyExists(email : string) {
+    public async checkUserAlreadyExists(email: string) {
         try {
             const db = this.getDb();
-            const user = await db.collection("users").findOne({email});
+            const user = await db.collection("users").findOne({ email });
             return user ? true : false;
         } catch (error) {
             console.log(error);
         }
-       
+
     }
 
-    public async createUser (firstName : string, lastName : string, email : string, password : string) {
+    public async createUser(firstName: string, lastName: string, email: string, password: string) {
         try {
             const db = this.getDb();
-            const user = await db.collection("users").insertOne({firstName : firstName, lastName : lastName, email : email, password : password});
+            const user = await db.collection("users").insertOne({ firstName: firstName, lastName: lastName, email: email, password: password });
             return user.insertedId.toString();
         } catch (error) {
             console.log(error);
         }
     }
 
-    public async getUser (email : string) {
+    public async getUser(identifier: string) {
         try {
-            const user = await DBInstance.db.collection("users").findOne({email});
+            const user = await DBInstance.db.collection("users").findOne({
+                $or: [
+                    { email: identifier },
+                    { firstName: identifier },
+                    {lastName : identifier}
+                ],
+                
+            },{
+                projection: {_id : 1, firstName : 1, lastName : 1}
+            });
             return user;
         } catch (error) {
             console.log(error);
         }
     }
 
+
     public async updateUser(userId: string, password: string | null, firstName: string | null, lastName: string | null) {
         try {
             const updateData: any = {};
-            if (password) updateData.password = password;
+            if (password) {
+                const hashedPassword = await bcrypt.hash(password, 10);
+                updateData.password = hashedPassword
+            }
             if (firstName) updateData.firstName = firstName;
             if (lastName) updateData.lastName = lastName;
-    
+
             console.log(userId);
             if (Object.keys(updateData).length > 0) {
                 const res = await DBInstance.db.collection("users").updateOne(
                     { "_id": new ObjectId(userId) },
                     { $set: updateData }
                 );
-                console.log(res);
             }
         } catch (error) {
             console.log(error);

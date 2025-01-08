@@ -87,6 +87,20 @@ userRouter.put("/updateinfo", authMiddleware, async function(req : IGetUserAuthI
         return;
     } catch (error) {
         console.log(error);
+        res.status(411).json({message : "Error updating user"});
+    }
+})
+
+userRouter.get("/bulk", authMiddleware, async function (req, res) {
+    try {
+        const name = req.query.filter as string
+        const dbInstance = await DBInstance.getInstance();
+        const user = await dbInstance.getUser(name);
+        
+        res.status(200).json({user, message : ""})
+    } catch (error) {
+        console.log(error);
+        res.status(411).json({message : "Error getting user"});
     }
 })
 
