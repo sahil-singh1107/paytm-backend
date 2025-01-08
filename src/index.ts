@@ -3,7 +3,7 @@ import express from "express"
 import cors from "cors"
 const app = express();
 import { DBInstance } from "./utils/db";
-import { userSchema } from "./schemas";
+import { accountSchema, userSchema } from "./schemas";
 import mainRouter from "./routes/index";
 
 app.use(cors())
@@ -15,6 +15,7 @@ app.use("/api/v1", mainRouter);
     try {
         const dbInstance = await DBInstance.getInstance();
         await dbInstance.createCollection("users", userSchema);
+        await dbInstance.createCollection("accounts", accountSchema);
     } catch (error) {
         console.error(error);
     }

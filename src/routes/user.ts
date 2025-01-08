@@ -34,6 +34,7 @@ userRouter.post("/signup", async function (req, res) {
         const hashedPassword = await bcrypt.hash(password, 10);
         
         const userId = await dbInstance.createUser(firstName, lastName, email, hashedPassword);
+        await dbInstance.createAccount(userId!.toString());
 
         const token = jwt.sign({userId}, "sdaf");
 
@@ -95,9 +96,8 @@ userRouter.get("/bulk", authMiddleware, async function (req, res) {
     try {
         const name = req.query.filter as string
         const dbInstance = await DBInstance.getInstance();
-        const user = await dbInstance.getUser(name);
-        
-        res.status(200).json({user, message : ""})
+        const users = await dbInstance.getAllUsers(name);
+        res.status(200).json({users, message : ""})
     } catch (error) {
         console.log(error);
         res.status(411).json({message : "Error getting user"});

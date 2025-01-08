@@ -12,3 +12,16 @@ export const userSchema = {
         },
     },
 };
+
+export const accountSchema = {
+    validator : {
+        $jsonSchema : {
+            bsonType : "object",
+            required : ["userId", "balance"],
+            properties : {
+                userId : {bsonType : "objectId"},
+                balance : {bsonType : "int"}
+            }
+        }
+    }
+}
