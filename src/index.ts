@@ -1,12 +1,25 @@
 require('dotenv').config()
 import express from "express"
-const Database = require("./utils/db");
-const username = process.env.MONGO_USERNAME
-const password = process.env.MONGO_PASS
-const dbname = process.env.MONGO_DBNAME
+import cors from "cors"
 const app = express();
+import { DBInstance } from "./utils/db";
+import { userSchema } from "./schemas";
+import mainRouter from "./routes/index";
 
-Database.connect(username,password,dbname);
+app.use(cors())
+app.use(express.json());
+
+app.use("/api/v1", mainRouter);
+
+(async () => {
+    try {
+        const dbInstance = await DBInstance.getInstance();
+        await dbInstance.createCollection("users", userSchema);
+    } catch (error) {
+        console.error(error);
+    }
+})();
+
 
 app.listen(3000, () => {
     console.log("server is listening on port 3000")

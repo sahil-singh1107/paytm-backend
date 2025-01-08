@@ -1,39 +1,87 @@
-import mongoose from "mongoose";
+import { MongoClient, Db } from "mongodb";
 
-class Database {
-    connection = mongoose.connection;
-    constructor() {
+export class DBInstance {
+    private static instance: DBInstance;
+    private static db: Db;
+    private MONGODB_URI: string = process.env.MONGODB_URI!;
+    private MONGODB_NAME: string = process.env.MONGODB_NAME!;
+    private MongoDBClient: MongoClient;
+
+    private constructor() {
+        console.log("New MongoClient Instance Created");
+        this.MongoDBClient = new MongoClient(this.MONGODB_URI); 
+    }
+
+    private async initialize() {
         try {
-            this.connection
-                .on('open', console.info.bind(console, 'Database connection: open'))
-                .on('close', console.info.bind(console, 'Database connection: close'))
-                .on('disconnected', console.info.bind(console, 'Database connection: disconnecting'))
-                .on('reconnected', console.info.bind(console, 'Database connection: reconnected'))
-                .on('fullsetup', console.info.bind(console, 'Database connection: fullsetup'))
-                .on('all', console.info.bind(console, 'Database connection: all'))
-                .on('error', console.error.bind(console, 'MongoDB connection: error:'));
+            const connClient = await this.MongoDBClient.connect();
+            DBInstance.db = connClient.db(this.MONGODB_NAME);
+            console.log("Connected to", this.MONGODB_NAME);
         } catch (error) {
-            console.error(error);
+            console.error("Error connecting to MongoDB:", error);
         }
     }
 
-    async connect(username: string, password: string, dbname: string) {
+    public static getInstance = async (): Promise<DBInstance> => {
+        if (!DBInstance.instance) {
+            DBInstance.instance = new DBInstance();
+            await DBInstance.instance.initialize();
+        }
+        return DBInstance.instance;
+    };
+
+    public getDb(): Db {
+        if (!DBInstance.db) {
+            throw new Error("Database not initialized. Ensure `getInstance` is called.");
+        }
+        return DBInstance.db;
+    }
+
+    public async createCollection (collectionName : string , options : object) : Promise<void> {
         try {
-            await mongoose.connect(
-                `mongodb+srv://${username}:${password}@cluster0.2a7nn.mongodb.net/${dbname}?retryWrites=true&w=majority`,
-            );
+
+            const db = DBInstance.db
+            const existingCollections = await db.listCollections({ name: collectionName }).toArray();
+            if (existingCollections.length > 0) {
+                console.log(`Collection '${collectionName}' already exists.`);
+                return;
+            }
+
+            await db.createCollection(collectionName, options);
+            console.log(`Collection ${collectionName} created`)
+
         } catch (error) {
-            console.error(error);
+            console.log(error)
         }
     }
 
-    async close() {
+    public async checkUserAlreadyExists(email : string) {
         try {
-            await this.connection.close();
+            const db = this.getDb();
+            const user = await db.collection("users").findOne({email});
+            return user ? true : false;
         } catch (error) {
-            console.error(error);
+            console.log(error);
+        }
+       
+    }
+
+    public async createUser (firstName : string, lastName : string, email : string, password : string) {
+        try {
+            const db = this.getDb();
+            const user = await db.collection("users").insertOne({firstName : firstName, lastName : lastName, email : email, password : password});
+            return user.insertedId.toString();
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    public async getUser (email : string) {
+        try {
+            const user = await DBInstance.db.collection("users").findOne({email});
+            return user;
+        } catch (error) {
+            console.log(error);
         }
     }
 }
-
-module.exports = new Database();
