@@ -1,4 +1,5 @@
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, Db, ObjectId } from "mongodb";
+var ObjectID = require('mongodb').ObjectID;
 
 export class DBInstance {
     private static instance: DBInstance;
@@ -80,6 +81,26 @@ export class DBInstance {
         try {
             const user = await DBInstance.db.collection("users").findOne({email});
             return user;
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
+    public async updateUser(userId: string, password: string | null, firstName: string | null, lastName: string | null) {
+        try {
+            const updateData: any = {};
+            if (password) updateData.password = password;
+            if (firstName) updateData.firstName = firstName;
+            if (lastName) updateData.lastName = lastName;
+    
+            console.log(userId);
+            if (Object.keys(updateData).length > 0) {
+                const res = await DBInstance.db.collection("users").updateOne(
+                    { "_id": new ObjectId(userId) },
+                    { $set: updateData }
+                );
+                console.log(res);
+            }
         } catch (error) {
             console.log(error);
         }

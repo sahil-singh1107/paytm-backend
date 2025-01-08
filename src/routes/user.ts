@@ -3,6 +3,7 @@ import { z } from "zod"
 import { DBInstance } from "../utils/db";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken"
+import { authMiddleware, IGetUserAuthInfoRequest } from "../middleware/middleware";
 
 const userRouter = express.Router();
 
@@ -72,6 +73,18 @@ userRouter.post("/signin", async function (req, res) {
             return;
         }
 
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+userRouter.put("/updateinfo", authMiddleware, async function(req : IGetUserAuthInfoRequest, res) {
+    const {password, firstName, lastName} = req.body;
+    try {
+        const dbInstance = await DBInstance.getInstance();
+        await dbInstance.updateUser(req.userId!, password, firstName, lastName);
+        res.status(200).json({message : "Updated sucessfully"});
+        return;
     } catch (error) {
         console.log(error);
     }
