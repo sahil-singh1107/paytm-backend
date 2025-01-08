@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 class Database {
     connection = mongoose.connection;
-
     constructor() {
         try {
             this.connection
