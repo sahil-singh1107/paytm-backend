@@ -113,10 +113,10 @@ export class DBInstance {
         }
     }
 
-    public async getBalance (userId : string) {
+    public async getAccount (userId : string) {
         try {
-            const account = await DBInstance.db.collection("accounts").findOne({"userId": new ObjectId(userId)}, {projection: {balance : 1}});
-            return account!.balance;
+            const account = await DBInstance.db.collection("accounts").findOne({"userId": new ObjectId(userId)});
+            return account;
         } catch (error) {
             console.log(error);
         }
@@ -143,4 +143,63 @@ export class DBInstance {
             console.log(error);
         }
     }
+
+    public async transferMoney(userId: string, recipientId: string, amount: number) {
+        const session = this.MongoDBClient.startSession();
+    
+        try {
+            session.startTransaction();
+    
+            // Fetch user account
+            const userAccount = await DBInstance.db
+                .collection("accounts")
+                .findOne({ userId: new ObjectId(userId) }, { session });
+    
+            if (!userAccount || userAccount.balance < amount) {
+                await session.abortTransaction();
+                return { success: false, message: "Insufficient balance" };
+            }
+    
+            // Fetch recipient account
+            const recipientAccount = await DBInstance.db
+                .collection("accounts")
+                .findOne({ userId: new ObjectId(recipientId) }, { session });
+    
+            if (!recipientAccount) {
+                await session.abortTransaction();
+                return { success: false, message: "Recipient account not found" };
+            }
+    
+            // Update balances
+            const debitResult = await DBInstance.db.collection("accounts").updateOne(
+                { userId: new ObjectId(userId) },
+                { $inc: { balance: -amount } },
+                { session }
+            );
+    
+            const creditResult = await DBInstance.db.collection("accounts").updateOne(
+                { userId: new ObjectId(recipientId) },
+                { $inc: { balance: amount } },
+                { session }
+            );
+    
+            console.log("Debit result:", debitResult);
+            console.log("Credit result:", creditResult);
+    
+            if (debitResult.modifiedCount === 0 || creditResult.modifiedCount === 0) {
+                await session.abortTransaction();
+                return { success: false, message: "Transfer failed: Unable to update balances" };
+            }
+    
+            await session.commitTransaction();
+            return { success: true, message: "Transfer successful" };
+        } catch (error) {
+            console.error("Transaction error:", error);
+            await session.abortTransaction();
+            return { success: false, message: "Transfer failed due to an error" };
+        } finally {
+            session.endSession();
+        }
+    }
+    
 }
